@@ -89,7 +89,60 @@ function updateWeather() {
                 throw new Error("Status: " + response.status + ". " + response.statusText);
             }
         }).then(function (json) {
-            processWeatherData(json);
+            const textDescription = json.properties.textDescription;
+            const useCelsius = document.cookie.replace(/(?:(?:^|.*;\s*)browserLocation\s*\=\s*([^;]*).*$)|^.*$/, "$1") !== "US";
+            let temperature = parseInt(json.properties.temperature.value);
+            let hotMax;
+            let hotMin;
+            let coldMax;
+            let coldMin;
+            let temperatureUnit;
+            let temperatureColor;
+
+            // Set weather icon
+            const now = new Date();
+            if (now.getHours() >= 6 && now.getHours() <= 18) {
+                $this.find(".wi").addClass(noaaIconMapDay[textDescription]);
+            } else {
+                $this.find(".wi").addClass(noaaIconMapNight[textDescription]);
+            }
+
+            // Set weather details
+            if (isNaN(temperature)) {
+                $this.find(".weather-item-details").html("---");
+            } else {
+                if (useCelsius) {
+                    temperature = Math.round(temperature);
+                    hotMax = 48.89;
+                    hotMin = 23.89;
+                    coldMax = 15.56;
+                    coldMin = -40;
+                    temperatureUnit = "C";
+                } else {
+                    temperature = Math.round(temperature * 1.8 + 32);
+                    hotMax = 120;
+                    hotMin = 75;
+                    coldMax = 60;
+                    coldMin = -40;
+                    temperatureUnit = "F";
+                }
+
+                if (temperature >= hotMin) {
+                    temperatureColor = shadeBlend((temperature - hotMin) / (hotMax - hotMin), temperatureColorHotStart, temperatureColorHotEnd);
+                } else if (temperature <= coldMax) {
+                    temperatureColor = shadeBlend((temperature - (coldMin)) / (coldMax - (coldMin)), temperatureColorColdStart, temperatureColorColdEnd);
+                } else {
+                    temperatureColor = "#FFFFFF";
+                }
+
+                $this.find(".weather-item-details").css("color", temperatureColor).html(temperature + "&deg;" + temperatureUnit);
+            }
+
+            // Set tooltip
+            $this.attr("title", textDescription).tooltip({
+                "toggle": "tooltip", "placement": "auto", "container": "body",
+                "template": "<div class='tooltip' role='tooltip'><div class='tooltip-arrow'></div><div class='tooltip-inner'></div></div>"
+            });
         }).catch(function (error) {
             console.error("There was an issue retrieving weather data.", error.message);
         }).finally(function() {
@@ -102,60 +155,7 @@ function updateWeather() {
 function processWeatherData(json) {
     "use strict";
 
-    const textDescription = json.properties.textDescription;
-    const useCelsius = document.cookie.replace(/(?:(?:^|.*;\s*)browserLocation\s*\=\s*([^;]*).*$)|^.*$/, "$1") !== "US";
-    let temperature = parseInt(json.properties.temperature.value);
-    let hotMax;
-    let hotMin;
-    let coldMax;
-    let coldMin;
-    let temperatureUnit;
-    let temperatureColor;
-    
-    // Set weather icon
-    const now = new Date();
-    if (now.getHours() >= 6 && now.getHours() <= 18) {
-        $(this).find(".wi").addClass(noaaIconMapDay[textDescription]);
-    } else {
-        $(this).find(".wi").addClass(noaaIconMapNight[textDescription]);
-    }
 
-    // Set weather details
-    if (isNaN(temperature)) {
-        $(this).find(".weather-item-details").html("---");
-    } else {
-        if (useCelsius) {
-            temperature = Math.round(temperature);
-            hotMax = 48.89;
-            hotMin = 23.89;
-            coldMax = 15.56;
-            coldMin = -40;
-            temperatureUnit = "C";
-        } else {
-            temperature = Math.round(temperature * 1.8 + 32);
-            hotMax = 120;
-            hotMin = 75;
-            coldMax = 60;
-            coldMin = -40;
-            temperatureUnit = "F";
-        }
-
-        if (temperature >= hotMin) {
-            temperatureColor = shadeBlend((temperature - hotMin) / (hotMax - hotMin), temperatureColorHotStart, temperatureColorHotEnd);
-        } else if (temperature <= coldMax) {
-            temperatureColor = shadeBlend((temperature - (coldMin)) / (coldMax - (coldMin)), temperatureColorColdStart, temperatureColorColdEnd);
-        } else {
-            temperatureColor = "#FFFFFF";
-        }
-
-        $(this).find(".weather-item-details").css("color", temperatureColor).html(temperature + "&deg;" + temperatureUnit);
-    }
-
-    // Set tooltip
-    $this.attr("title", textDescription).tooltip({
-        "toggle": "tooltip", "placement": "auto", "container": "body",
-        "template": "<div class='tooltip' role='tooltip'><div class='tooltip-arrow'></div><div class='tooltip-inner'></div></div>"
-    });
 }
 
     // Retrieve international weather via Yahoo! Weather API
