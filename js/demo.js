@@ -37,6 +37,13 @@ const noaaIconMapNight = {
     "Light Snow": "wi-night-snow",
     "Light Snow and Fog/Mist": "wi-day-snow"
 };
+const yahooIconMap = ["wi-tornado", "wi-rain-wind", "wi-hurricane", "wi-thunderstorm", "wi-rain-mix", "wi-snow",
+    "wi-sleet", "wi-sleet", "wi-rain", "wi-sleet", "wi-showers", "wi-showers", "wi-showers", "wi-snow-wind", "wi-snow",
+    "wi-snow-wind", "wi-snow", "wi-hail", "wi-sleet", "wi-dust", "wi-fog", "wi-day-haze", "wi-smoke", "wi-strong-wind",
+    "wi-strong-wind", "wi-wi-snowflake-cold", "wi-cloudy", "wi-night-alt-cloudy", "wi-day-cloudy",
+    "wi-night-alt-partly-cloudy", "wi-day-cloudy", "wi-night-alt-partly-cloudy", "wi-day-sunny", "wi-stars",
+    "wi-day-sunny", "wi-hail", "wi-hot", "wi-thunderstorm", "wi-thunderstorm", "wi-thunderstorm", "wi-showers",
+    "wi-snow", "wi-snow", "wi-snow", "wi-cloudy", "wi-storm-showers", "wi-snow", "wi-storm-showers"];
 
 $(function() {
    "use strict";
@@ -75,6 +82,68 @@ function updateWeather() {
     "use strict";
 
     const wundergroundUrl = "https://www.wunderground.com/cgi-bin/findweather/getForecast?query=";
+    const useCelsius = document.cookie.replace(/(?:(?:^|.*;\s*)browserLocation\s*\=\s*([^;]*).*$)|^.*$/, "$1") !== "US";
+    const hotMax = useCelsius ? 48.89 : 120;
+    const hotMin = useCelsius ? 23.89 : 75;
+    const coldMax = useCelsius ? 15.56 : 60;
+    const coldMin = useCelsius ? -40 : -40;
+    const temperatureUnit = useCelsius ? "C" : "F";
+
+    // Retrieve international weather via Yahoo! Weather
+    $(".weather-item.intl-weather").each(function () {
+       const $this = $(this);
+       const location = $this.find(".weather-item-location").attr("data-location");
+       const query = "select item.condition, item.link from weather.forecast where woeid in (select woeid from geo.places(1) where text = '" + location + "') and u='" + temperatureUnit.toLowerCase() + "'";
+       const url = "https://query.yahooapis.com/v1/public/yql?q=" + query + "&format=json";
+
+       fetch(url).then(function (response) {
+           if (response.ok) {
+               return response.json();
+           } else {
+               throw new Error(`Status: ${respones.status}. ${response.statusText}`);
+           }
+       }).then(function (json) {
+           const $weatherIcon = $(this).find(".weather-icon");
+           let conditionCode;
+           let temperature;
+           let temperatureColor;
+
+           if (json.query.count > 0) {
+               // Set weather icon
+               conditionCode = json.query.results.channel.item.condition.code;
+               if (conditionCode === 3200) {
+                   $weatherIcon.hide();
+               } else {
+                   $weatherIcon.show();
+                   $this.find(".wi").addClass(yahooIconMap[conditionCode]);
+               }
+
+               // Set weather details
+               temperature = json.query.results.channel.item.condition.temp;
+
+               if (temperature >= hotMin) {
+                   temperatureColor = shadeBlend((temperature - hotMin) / (hotMax - hotMin), temperatureColorHotStart, temperatureColorHotEnd);
+               } else if (temperature <= coldMax) {
+                   temperatureColor = shadeBlend((temperature - (coldMin)) / (coldMax - (coldMin)), temperatureColorColdStart, temperatureColorColdEnd);
+               } else {
+                   temperatureColor = "#FFFFFF";
+               }
+
+               $this.find(".weather-item-details").css("color", temperatureColor).html(temperature + "&deg;" + temperatureUnit + " ");
+
+               // Set tooltip
+               $this.attr("title", json.query.results.channel.item.condition.text).tooltip({
+                   "toggle": "tooltip", "placement": "auto", "container": "body",
+                   "template": `<div class="tooltip" role="tooltip"><div class="tooltip-arrow"></div><div class="tooltip-inner"></div></div>`
+               });
+           }
+       }).catch(function (error) {
+           console.error("There was an issue retrieving weather data.", error.message);
+       }).finally(function() {
+           // Set links
+           $this.find("a").attr("href", wundergroundUrl + location);
+       });
+    });
 
     // Retrieve US weather via NOAA API
     $(".weather-item.us-weather").each(function () {
@@ -86,17 +155,11 @@ function updateWeather() {
             if (response.ok) {
                 return response.json();
             } else {
-                throw new Error("Status: " + response.status + ". " + response.statusText);
+                throw new Error(`Status: ${respones.status}. ${response.statusText}`);
             }
         }).then(function (json) {
             const textDescription = json.properties.textDescription;
-            const useCelsius = document.cookie.replace(/(?:(?:^|.*;\s*)browserLocation\s*\=\s*([^;]*).*$)|^.*$/, "$1") !== "US";
             let temperature = parseInt(json.properties.temperature.value);
-            let hotMax;
-            let hotMin;
-            let coldMax;
-            let coldMin;
-            let temperatureUnit;
             let temperatureColor;
 
             // Set weather icon
@@ -113,18 +176,8 @@ function updateWeather() {
             } else {
                 if (useCelsius) {
                     temperature = Math.round(temperature);
-                    hotMax = 48.89;
-                    hotMin = 23.89;
-                    coldMax = 15.56;
-                    coldMin = -40;
-                    temperatureUnit = "C";
                 } else {
                     temperature = Math.round(temperature * 1.8 + 32);
-                    hotMax = 120;
-                    hotMin = 75;
-                    coldMax = 60;
-                    coldMin = -40;
-                    temperatureUnit = "F";
                 }
 
                 if (temperature >= hotMin) {
@@ -141,7 +194,7 @@ function updateWeather() {
             // Set tooltip
             $this.attr("title", textDescription).tooltip({
                 "toggle": "tooltip", "placement": "auto", "container": "body",
-                "template": "<div class='tooltip' role='tooltip'><div class='tooltip-arrow'></div><div class='tooltip-inner'></div></div>"
+                "template": `<div class="tooltip" role="tooltip"><div class="tooltip-arrow"></div><div class="tooltip-inner"></div></div>`
             });
         }).catch(function (error) {
             console.error("There was an issue retrieving weather data.", error.message);
@@ -149,6 +202,10 @@ function updateWeather() {
             // Set links
             $this.find("a").attr("href", wundergroundUrl + location);
         });
+    });
+
+    $("#header-bar-weather").find(".weather-group").each(function () {
+        $(this).find(".weather-item").eq(1).fadeToggle();
     });
 }
 
@@ -158,93 +215,7 @@ function processWeatherData(json) {
 
 }
 
-    // Retrieve international weather via Yahoo! Weather API
-    // Service is very unstable and often returns null
-    // $weatherItems = $(".weather-item.intl-weather");
-    //
-    // $weatherItems.each(function () {
-    //     const iconMap = ["wi-tornado", "wi-rain-wind", "wi-hurricane", "wi-thunderstorm", "wi-rain-mix", "wi-snow", "wi-sleet", "wi-sleet", "wi-rain", "wi-sleet", "wi-showers",
-    //         "wi-showers", "wi-showers", "wi-snow-wind", "wi-snow", "wi-snow-wind", "wi-snow", "wi-hail", "wi-sleet", "wi-dust", "wi-fog",
-    //         "wi-day-haze", "wi-smoke", "wi-strong-wind", "wi-strong-wind", "wi-wi-snowflake-cold", "wi-cloudy", "wi-night-alt-cloudy", "wi-day-cloudy", "wi-night-alt-partly-cloudy", "wi-day-cloudy",
-    //         "wi-night-alt-partly-cloudy", "wi-day-sunny", "wi-stars", "wi-day-sunny", "wi-hail", "wi-hot", "wi-thunderstorm", "wi-thunderstorm", "wi-thunderstorm", "wi-showers",
-    //         "wi-snow", "wi-snow", "wi-snow", "wi-cloudy", "wi-storm-showers", "wi-snow", "wi-storm-showers"];
-    //
-    //     let $this = $(this);
-    //     let $weatherIcon = $(this).find(".weather-icon");
-    //     let location = $this.find(".weather-item-location").attr("data-location");
-    //     let query;
-    //     let conditionCode;
-    //     let temperature;
-    //     let temperatureColor;
-    //     let hotMax;
-    //     let hotMin;
-    //     let coldMax;
-    //     let coldMin;
-    //     let temperatureUnit;
-    //
-    //     if (!useCelsius) {
-    //         hotMax = 120;
-    //         hotMin = 75;
-    //         coldMax = 60;
-    //         coldMin = -40;
-    //         temperatureUnit = "F";
-    //     } else {
-    //         hotMax = 48.89;
-    //         hotMin = 23.89;
-    //         coldMax = 15.56;
-    //         coldMin = -40;
-    //         temperatureUnit = "C";
-    //     }
-    //
-    //     query = "select item.condition, item.link from weather.forecast where woeid in (select woeid from geo.places(1) where text = '" + location + "') and u='" + temperatureUnit.toLowerCase() + "'";
-    //     url = "https://query.yahooapis.com/v1/public/yql?q=" + query + "&format=json";
-    //     jqxhr = $.ajax({
-    //         method: "GET",
-    //         url: url,
-    //         dataType: "json",
-    //         cache: false
-    //     })
-    //         .done(function (json) {
-    //             if (json.query.count !== 0) {
-    //                 // Set weather icon
-    //                 conditionCode = json.query.results.channel.item.condition.code;
-    //                 if (conditionCode === 3200) {
-    //                     $weatherIcon.hide();
-    //                 } else {
-    //                     $weatherIcon.show();
-    //                     $this.find(".wi").addClass(iconMap[conditionCode]);
-    //                 }
-    //
-    //                 // Set weather details
-    //                 temperature = json.query.results.channel.item.condition.temp;
-    //
-    //                 if (temperature >= hotMin) {
-    //                     temperatureColor = shadeBlend((temperature - hotMin) / (hotMax - hotMin), temperatureColorHotStart, temperatureColorHotEnd);
-    //                 } else if (temperature <= coldMax) {
-    //                     temperatureColor = shadeBlend((temperature - (coldMin)) / (coldMax - (coldMin)), temperatureColorColdStart, temperatureColorColdEnd);
-    //                 } else {
-    //                     temperatureColor = "#FFFFFF";
-    //                 }
-    //
-    //                 $this.find(".weather-item-details").css("color", temperatureColor).html(temperature + "&deg;" + temperatureUnit + " ");
-    //
-    //                 // Set tooltip
-    //                 $this.attr("title", json.query.results.channel.item.condition.text).tooltip({
-    //                     "toggle": "tooltip", "placement": "auto", "container": "body",
-    //                     "template": "<div class='tooltip' role='tooltip'><div class='tooltip-arrow'></div><div class='tooltip-inner'></div></div>"
-    //                 });
-    //             }
-    //         })
-    //         .always(function () {
-    //             // Set link
-    //             $this.find("a").attr("href", wundergroundUrl + location);
-    //         });
-    // });
-    //
-    // $("#header-bar-weather").find(".weather-group").each(function () {
-    //     $(this).find(".weather-item").eq(1).fadeToggle();
-    // });
-// }
+
 
 function changeWeather($weatherGroup) {
     "use strict";
