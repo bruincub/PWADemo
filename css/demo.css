@@ -19,3 +19,38 @@ body {
 #header-bar-weather {
     margin-left: 0;
 }
+
+.weather-group {
+    display: inline-block;
+    height: 45px;
+    max-height: 45px;
+    width: 65px;
+}
+
+.weather-group:not(:first-child) {
+    margin-left: 5px;
+}
+
+.weather-item {
+    position: absolute;
+    text-align: center;
+}
+
+.weather-item-location {
+    display: block;
+    margin-bottom: 3px;
+}
+
+.weather-item-location, .weather-item-details {
+    font-size: .9em;
+}
+
+.weather-item-icon {
+    color: rgb(255, 255, 255) !important;
+    font-size: 1.25em;
+}
+
+.weather-item-details {
+    margin-left: 3px;
+}
+

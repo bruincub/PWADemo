@@ -45,6 +45,29 @@ const yahooIconMap = ["wi-tornado", "wi-rain-wind", "wi-hurricane", "wi-thunders
     "wi-day-sunny", "wi-hail", "wi-hot", "wi-thunderstorm", "wi-thunderstorm", "wi-thunderstorm", "wi-showers",
     "wi-snow", "wi-snow", "wi-snow", "wi-cloudy", "wi-storm-showers", "wi-snow", "wi-storm-showers"];
 
+(function serviceWorker() {
+    if (!navigator.serviceWorker) return;
+
+    navigator.serviceWorker.register("js/sw.js").then(function(reg) {
+        if (!navigator.serviceWorker.controller) return;
+
+        if (reg.waiting) {
+
+            return;
+        }
+
+        if (reg.installing) {
+
+            return;
+        }
+
+        reg.addEventListener("updatefound", function() {
+
+            return;
+        });
+    });
+})();
+
 $(function() {
    "use strict";
 
