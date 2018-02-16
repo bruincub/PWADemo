@@ -48,7 +48,7 @@ const yahooIconMap = ["wi-tornado", "wi-rain-wind", "wi-hurricane", "wi-thunders
 (function serviceWorker() {
     if (!navigator.serviceWorker) return;
 
-    navigator.serviceWorker.register("js/sw.js").then(function(reg) {
+    navigator.serviceWorker.register("sw.js").then(function(reg) {
         if (!navigator.serviceWorker.controller) return;
 
         if (reg.waiting) {
@@ -84,6 +84,9 @@ $(function() {
     }
 
     updateWeather();
+    $("#header-bar-weather").find(".weather-group").each(function () {
+        $(this).find(".weather-item").eq(1).fadeToggle();
+    });
     setInterval(rotateWeatherItems, weatherInterval*7000);
 });
 
@@ -119,53 +122,57 @@ function updateWeather() {
        const query = "select item.condition, item.link from weather.forecast where woeid in (select woeid from geo.places(1) where text = '" + location + "') and u='" + temperatureUnit.toLowerCase() + "'";
        const url = "https://query.yahooapis.com/v1/public/yql?q=" + query + "&format=json";
 
-       fetch(url).then(function (response) {
-           if (response.ok) {
-               return response.json();
-           } else {
-               throw new Error(`Status: ${respones.status}. ${response.statusText}`);
-           }
-       }).then(function (json) {
-           const $weatherIcon = $(this).find(".weather-icon");
-           let conditionCode;
-           let temperature;
-           let temperatureColor;
-
-           if (json.query.count > 0) {
-               // Set weather icon
-               conditionCode = json.query.results.channel.item.condition.code;
-               if (conditionCode === 3200) {
-                   $weatherIcon.hide();
+       if (self.fetch) {
+           fetch(url).then(function (response) {
+               if (response.ok) {
+                   return response.json();
                } else {
-                   $weatherIcon.show();
-                   $this.find(".wi").addClass(yahooIconMap[conditionCode]);
+                   throw new Error(`Status: ${response.status}. ${response.statusText}`);
                }
+           }).then(function (json) {
+               const $weatherIcon = $(this).find(".weather-icon");
+               let conditionCode;
+               let temperature;
+               let temperatureColor;
 
-               // Set weather details
-               temperature = json.query.results.channel.item.condition.temp;
+               if (json.query.count > 0) {
+                   // Set weather icon
+                   conditionCode = json.query.results.channel.item.condition.code;
+                   if (conditionCode === 3200) {
+                       $weatherIcon.hide();
+                   } else {
+                       $weatherIcon.show();
+                       $this.find(".wi").addClass(yahooIconMap[conditionCode]);
+                   }
 
-               if (temperature >= hotMin) {
-                   temperatureColor = shadeBlend((temperature - hotMin) / (hotMax - hotMin), temperatureColorHotStart, temperatureColorHotEnd);
-               } else if (temperature <= coldMax) {
-                   temperatureColor = shadeBlend((temperature - (coldMin)) / (coldMax - (coldMin)), temperatureColorColdStart, temperatureColorColdEnd);
-               } else {
-                   temperatureColor = "#FFFFFF";
+                   // Set weather details
+                   temperature = json.query.results.channel.item.condition.temp;
+
+                   if (temperature >= hotMin) {
+                       temperatureColor = shadeBlend((temperature - hotMin) / (hotMax - hotMin), temperatureColorHotStart, temperatureColorHotEnd);
+                   } else if (temperature <= coldMax) {
+                       temperatureColor = shadeBlend((temperature - (coldMin)) / (coldMax - (coldMin)), temperatureColorColdStart, temperatureColorColdEnd);
+                   } else {
+                       temperatureColor = "#FFFFFF";
+                   }
+
+                   $this.find(".weather-item-details").css("color", temperatureColor).html(temperature + "&deg;" + temperatureUnit + " ");
+
+                   // Set tooltip
+                   $this.attr("title", json.query.results.channel.item.condition.text).tooltip({
+                       "toggle": "tooltip", "placement": "auto", "container": "body",
+                       "template": `<div class="tooltip" role="tooltip"><div class="tooltip-arrow"></div><div class="tooltip-inner"></div></div>`
+                   });
                }
-
-               $this.find(".weather-item-details").css("color", temperatureColor).html(temperature + "&deg;" + temperatureUnit + " ");
-
-               // Set tooltip
-               $this.attr("title", json.query.results.channel.item.condition.text).tooltip({
-                   "toggle": "tooltip", "placement": "auto", "container": "body",
-                   "template": `<div class="tooltip" role="tooltip"><div class="tooltip-arrow"></div><div class="tooltip-inner"></div></div>`
-               });
-           }
-       }).catch(function (error) {
-           console.error("There was an issue retrieving weather data.", error.message);
-       }).finally(function() {
-           // Set links
-           $this.find("a").attr("href", wundergroundUrl + location);
-       });
+           }).catch(function (error) {
+               console.error("There was an issue retrieving weather data.", error.message);
+           }).finally(function() {
+               // Set links
+               $this.find("a").attr("href", wundergroundUrl + location);
+           });
+       } else {
+           alert("Your browser does not support the latest JavaScript features. Please upgrade to the latest version of Chrome, Firefox, or Edge.");
+       }
     });
 
     // Retrieve US weather via NOAA API
@@ -174,61 +181,61 @@ function updateWeather() {
         const location = $this.find(".weather-item-location").attr("data-location");
         const url = "https://api.weather.gov/stations/" + location + "/observations/current";
 
-        fetch(url).then(function (response) {
-            if (response.ok) {
-                return response.json();
-            } else {
-                throw new Error(`Status: ${respones.status}. ${response.statusText}`);
-            }
-        }).then(function (json) {
-            const textDescription = json.properties.textDescription;
-            let temperature = parseInt(json.properties.temperature.value);
-            let temperatureColor;
-
-            // Set weather icon
-            const now = new Date();
-            if (now.getHours() >= 6 && now.getHours() <= 18) {
-                $this.find(".wi").addClass(noaaIconMapDay[textDescription]);
-            } else {
-                $this.find(".wi").addClass(noaaIconMapNight[textDescription]);
-            }
-
-            // Set weather details
-            if (isNaN(temperature)) {
-                $this.find(".weather-item-details").html("---");
-            } else {
-                if (useCelsius) {
-                    temperature = Math.round(temperature);
+        if (self.fetch) {
+            fetch(url).then(function (response) {
+                if (response.ok) {
+                    return response.json();
                 } else {
-                    temperature = Math.round(temperature * 1.8 + 32);
+                    throw new Error(`Status: ${response.status}. ${response.statusText}`);
+                }
+            }).then(function (json) {
+                const textDescription = json.properties.textDescription;
+                let temperature = parseInt(json.properties.temperature.value);
+                let temperatureColor;
+
+                // Set weather icon
+                const now = new Date();
+                if (now.getHours() >= 6 && now.getHours() <= 18) {
+                    $this.find(".wi").addClass(noaaIconMapDay[textDescription]);
+                } else {
+                    $this.find(".wi").addClass(noaaIconMapNight[textDescription]);
                 }
 
-                if (temperature >= hotMin) {
-                    temperatureColor = shadeBlend((temperature - hotMin) / (hotMax - hotMin), temperatureColorHotStart, temperatureColorHotEnd);
-                } else if (temperature <= coldMax) {
-                    temperatureColor = shadeBlend((temperature - (coldMin)) / (coldMax - (coldMin)), temperatureColorColdStart, temperatureColorColdEnd);
+                // Set weather details
+                if (isNaN(temperature)) {
+                    $this.find(".weather-item-details").html("---");
                 } else {
-                    temperatureColor = "#FFFFFF";
+                    if (useCelsius) {
+                        temperature = Math.round(temperature);
+                    } else {
+                        temperature = Math.round(temperature * 1.8 + 32);
+                    }
+
+                    if (temperature >= hotMin) {
+                        temperatureColor = shadeBlend((temperature - hotMin) / (hotMax - hotMin), temperatureColorHotStart, temperatureColorHotEnd);
+                    } else if (temperature <= coldMax) {
+                        temperatureColor = shadeBlend((temperature - (coldMin)) / (coldMax - (coldMin)), temperatureColorColdStart, temperatureColorColdEnd);
+                    } else {
+                        temperatureColor = "#FFFFFF";
+                    }
+
+                    $this.find(".weather-item-details").css("color", temperatureColor).html(temperature + "&deg;" + temperatureUnit);
                 }
 
-                $this.find(".weather-item-details").css("color", temperatureColor).html(temperature + "&deg;" + temperatureUnit);
-            }
-
-            // Set tooltip
-            $this.attr("title", textDescription).tooltip({
-                "toggle": "tooltip", "placement": "auto", "container": "body",
-                "template": `<div class="tooltip" role="tooltip"><div class="tooltip-arrow"></div><div class="tooltip-inner"></div></div>`
+                // Set tooltip
+                $this.attr("title", textDescription).tooltip({
+                    "toggle": "tooltip", "placement": "auto", "container": "body",
+                    "template": `<div class="tooltip" role="tooltip"><div class="tooltip-arrow"></div><div class="tooltip-inner"></div></div>`
+                });
+            }).catch(function (error) {
+                console.error("There was an issue retrieving weather data.", error.message);
+            }).finally(function() {
+                // Set links
+                $this.find("a").attr("href", wundergroundUrl + location);
             });
-        }).catch(function (error) {
-            console.error("There was an issue retrieving weather data.", error.message);
-        }).finally(function() {
-            // Set links
-            $this.find("a").attr("href", wundergroundUrl + location);
-        });
-    });
-
-    $("#header-bar-weather").find(".weather-group").each(function () {
-        $(this).find(".weather-item").eq(1).fadeToggle();
+        } else {
+            alert("Your browser does not support the latest JavaScript features. Please upgrade to the latest version of Chrome, Firefox, or Edge.");
+        }
     });
 }
 
