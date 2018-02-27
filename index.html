@@ -8,6 +8,12 @@
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
 
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:400,400i,600,600i,700,700i">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:300,300i,400,400i,700,700i" >
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Arvo:400,400i,700,700i">
+
+    <link rel="stylesheet" href="fonts/weathericons/css/weather-icons.min.css">
+
     <link rel="stylesheet" href="css/demo.css" type="text/css">
 
     <title>PWA Demo</title>
@@ -15,7 +21,7 @@
 <body>
     <div class="container-fluid">
         <div class="row header-bar">
-            <div class="col-sm-4">
+            <div class="col-12">
                 <div id="header-bar-weather" class="row weather">
                     <div class="weather-group">
                         <div class="weather-item us-weather">
@@ -66,6 +72,11 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+        <div id="systemStatus" class="row">
+            <div id="loaderContainer" class="col-12">
+                <div class="loader" style="display: none;">Loading</div>
             </div>
         </div>
     </div>

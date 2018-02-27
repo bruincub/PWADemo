@@ -52,7 +52,7 @@ const yahooIconMap = ["wi-tornado", "wi-rain-wind", "wi-hurricane", "wi-thunders
         if (!navigator.serviceWorker.controller) return;
 
         if (reg.waiting) {
-
+            updateReady(reg.waiting);
             return;
         }
 
@@ -66,29 +66,139 @@ const yahooIconMap = ["wi-tornado", "wi-rain-wind", "wi-hurricane", "wi-thunders
             return;
         });
     });
+
 })();
 
-$(function() {
+$(function init() {
    "use strict";
 
     /* EU cookie notice */
-    if (document.cookie.replace(/(?:(?:^|.*;\s*)cookieNoticeAck\s*\=\s*([^;]*).*$)|^.*$/, "$1") === "true") {
-        $cookieNotice.hide();
-    } else {
-        $cookieNotice.show();
-        $cookieNotice.find("button.close").click(function () {
-            if (document.cookie.replace(/(?:(?:^|.*;\s*)cookieNoticeAck\s*\=\s*([^;]*).*$)|^.*$/, "$1") !== "true") {
-                document.cookie = "cookieNoticeAck=true; Expires=Fri, 31 Dec 9999 23:59:59 GMT; Secure; SameSite=Strict";
-            }
-        });
-    }
+    // if (document.cookie.replace(/(?:(?:^|.*;\s*)cookieNoticeAck\s*\=\s*([^;]*).*$)|^.*$/, "$1") === "true") {
+    //     $cookieNotice.hide();
+    // } else {
+    //     $cookieNotice.show();
+    //     $cookieNotice.find("button.close").click(function () {
+    //         if (document.cookie.replace(/(?:(?:^|.*;\s*)cookieNoticeAck\s*\=\s*([^;]*).*$)|^.*$/, "$1") !== "true") {
+    //             document.cookie = "cookieNoticeAck=true; Expires=Fri, 31 Dec 9999 23:59:59 GMT; Secure; SameSite=Strict";
+    //         }
+    //     });
+    // }
 
-    updateWeather();
+    updateSystemStatus();
+
     $("#header-bar-weather").find(".weather-group").each(function () {
         $(this).find(".weather-item").eq(1).fadeToggle();
     });
-    setInterval(rotateWeatherItems, weatherInterval*7000);
+    updateWeather();
+    setInterval(rotateWeatherItems, weatherInterval * 1000 * 7);
+    setInterval(updateWeather, weatherInterval * 1000 * 3600);
 });
+
+/* System Status */
+/* Should use WebSockets or Push Notifications for System Status, but infrastructure doesn't exist yet */
+function updateSystemStatus() {
+    "use strict";
+
+    const systemStatusUrl = "https://systemstatus.temple.edu/system_status/feedJSON";
+    let hasNetworkData = false;
+    let networkResponse;
+
+    if (self.fetch) {
+        toggleSpinner();
+
+        networkResponse = fetch(systemStatusUrl).then(function(response) {
+           if (response.ok) {
+               return response.json();
+           } else {
+               throw Error(`Status: ${response.status}. ${response.statusText}`);
+           }
+        }).then(function(data) {
+            hasNetworkData = true;
+            displayStatuses(data);
+        });
+
+        caches.match(systemStatusUrl).then(function(response) {
+           if (!response) throw Error("No data");
+           return response.json();
+        }).then(function(data) {
+            if (!hasNetworkData) {
+                displayStatuses(data);
+            }
+        }).catch(function() {
+            return networkResponse;
+        }).catch(function() {
+            // TODO: Display Error
+
+        }).then(function() {
+            toggleSpinner();
+        });
+    } else {
+        alert("Your browser does not support the latest JavaScript features. Please upgrade to the latest version of Chrome, Firefox, or Edge.");
+    }
+
+    function displayStatuses(data) {
+        const $systemStatus = $("#systemStatus");
+
+        for (const status of data.entries) {
+            const $oldStatusCard = $systemStatus.find("div[id='" + status.id + "']");
+            const statusId = status.id;
+            const statusUrl = `https://systemstatus.temple.edu/${status.link}`;
+            const statusTitle = status.title;
+            const statusCondition = status.summarystatus.split(": ")[1];
+            const statusConditionClass = statusCondition.toLocaleLowerCase();
+            const statusSummaryText = $("<div>").html(status.summarytext).text();
+            const statusUpdateDateTime = formatDateTime(status.updated.date);
+
+
+            let statusCard = `<div class="col-12 systemStatusCardContainer">
+                                <div id="${statusId}" class="card systemStatusCard ${statusConditionClass}">
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-9">
+                                                <h1 class="card-title"><a href="https://systemstatus.temple.edu/${statusUrl}">${statusTitle}</a></h1>
+                                            </div>
+                                            <div class="col-3">
+                                                <p class="status">${statusCondition}</p>
+                                            </div>
+                                        </div>
+                                        <p class="card-text summary">${statusSummaryText}</p>
+                                    </div>
+                                    <div class="card-footer text-muted">
+                                        <p class="timestamp"><b>Updated</b>: ${statusUpdateDateTime}</p>
+                                    </div>
+                                </div>
+                              </div>`;
+
+            if ($oldStatusCard.length > 0) {
+
+            } else {
+                $systemStatus.append(statusCard);
+            }
+        }
+
+        function formatDateTime(timestamp) {
+            const dateTimeParts = timestamp.split(" ");
+
+            const dateParts = dateTimeParts[0].split("-");
+            const year = parseInt(dateParts[0]);
+            const month = parseInt(dateParts[1]);
+            const date = parseInt(dateParts[2]);
+            const timeParts = dateTimeParts[1].split(":");
+            const hour = parseInt(timeParts[0]);
+            const minutes = parseInt(timeParts[1]);
+            const datetime = new Date(year, month, date, hour, minutes, 0, 0);
+
+            return new Intl.DateTimeFormat("en-US", {weekday: "long", year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "numeric" }).format(datetime);
+        }
+
+    }
+}
+
+function toggleSpinner() {
+    "use strict";
+
+    $("#loaderContainer").find(".loader").toggle();
+}
 
 /* Weather */
 function shadeBlend(p,c0,c1) {
@@ -127,7 +237,7 @@ function updateWeather() {
                if (response.ok) {
                    return response.json();
                } else {
-                   throw new Error(`Status: ${response.status}. ${response.statusText}`);
+                   throw Error(`Status: ${response.status}. ${response.statusText}`);
                }
            }).then(function (json) {
                const $weatherIcon = $(this).find(".weather-icon");
@@ -186,7 +296,7 @@ function updateWeather() {
                 if (response.ok) {
                     return response.json();
                 } else {
-                    throw new Error(`Status: ${response.status}. ${response.statusText}`);
+                    throw Error(`Status: ${response.status}. ${response.statusText}`);
                 }
             }).then(function (json) {
                 const textDescription = json.properties.textDescription;
@@ -241,16 +351,6 @@ function updateWeather() {
 
 function processWeatherData(json) {
     "use strict";
-
-
-}
-
-
-
-function changeWeather($weatherGroup) {
-    "use strict";
-
-    $weatherGroup.find(".weather-item").fadeToggle();
 }
 
 function rotateWeatherItems() {
@@ -259,4 +359,8 @@ function rotateWeatherItems() {
     $("#header-bar-weather .weather-group").each(function(i) {
         setTimeout(changeWeather, i*weatherInterval*1000, $(this));
     });
+
+    function changeWeather($weatherGroup) {
+        $weatherGroup.find(".weather-item").fadeToggle();
+    }
 }

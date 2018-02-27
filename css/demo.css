@@ -22,8 +22,8 @@ body {
 
 .weather-group {
     display: inline-block;
-    height: 45px;
-    max-height: 45px;
+    height: 65px;
+    max-height: 65px;
     width: 65px;
 }
 
@@ -52,5 +52,109 @@ body {
 
 .weather-item-details {
     margin-left: 3px;
+}
+
+/* System Status Cards */
+#systemStatus .systemStatusCardContainer{
+    margin-bottom: 5px;
+    margin-top: 5px;
+}
+
+.systemStatusCard .card-title {
+    font-size: 2rem;
+}
+
+.systemStatusCard .card-subtitle, .systemStatusCard .status {
+    font-size: 1.25rem;
+    border: 1px solid #000000;
+    float: right;
+    font-weight: bold;
+    margin-bottom: 0;
+    padding-left: 5px;
+    padding-right: 5px;
+    text-transform: uppercase;
+}
+
+.systemStatusCard.resolved .status {
+    color: #155724;
+    background-color: #D4EDDA;
+    border-color: #C3E6CB;
+}
+
+.systemStatusCard.resolved .card-body {
+    background: linear-gradient(.25turn, #D4EDDA 1.25%, #FFFFFF 1.25%);
+}
+
+.systemStatusCard.intermittent .status {
+    color: #856404;
+    background-color: #FFF3CD;
+    border-color: #FFEEBA;
+}
+
+.systemStatusCard.intermittent .card-body {
+    background: linear-gradient(.25turn, #FFF3CD 1.25%, #FFFFFF 1.25%);
+}
+
+.systemStatusCard .timestamp {
+    margin-bottom: 0;
+}
+
+/* Pulsing Loader */
+#loaderContainer {
+    position: absolute;
+    z-index: 1000;
+}
+
+.loader {
+    color: rgb(228, 230, 231);
+    font-size: 1.5em;
+    width: 150px;
+    height: 150px;
+    line-height: 150px;
+    margin: 0 auto;
+    position: relative;
+    box-sizing: border-box;
+    text-align: center;
+    z-index: 0;
+    text-transform: uppercase;
+}
+
+.loader:before,
+.loader:after {
+    opacity: 0;
+    box-sizing: border-box;
+    content: "\0020";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 100px;
+    border: 5px solid rgba(110, 196, 232, .55);
+    box-shadow: 0 0 50px rgb(110, 196, 232), inset 0 0 50px rgb(110, 196, 232);
+}
+
+.loader:after {
+    z-index: 1;
+    -webkit-animation: loader 3.25s infinite 3.25s;
+}
+
+.loader:before {
+    z-index: 2;
+    -webkit-animation: loader 3.25s infinite;
+}
+
+@-webkit-keyframes loader {
+    0% {
+        -webkit-transform: scale(0);
+        opacity: 0;
+    }
+    50% {
+        opacity: 1;
+    }
+    100% {
+        -webkit-transform: scale(1);
+        opacity: 0;
+    }
 }
 
