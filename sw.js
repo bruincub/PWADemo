@@ -52,8 +52,8 @@ self.addEventListener("fetch", function(event) {
 
     if (requestUrl.origin === "https://query.yahooapis.com" || requestUrl.origin === "https://api.weather.gov") {
         event.respondWith(serveWeather(event.request));
-    } else if (requestUrl.origin === "https://systemstatus.temple.edu") {
-        event.respondWith(serveSystemStatus(event.request));
+    // } else if (requestUrl.origin === "https://systemstatus.temple.edu") {
+    //     event.respondWith(serveSystemStatus(event.request));
     } else {
         event.respondWith(
             caches.match(event.request).then(function(response) {
@@ -85,10 +85,10 @@ function serveSystemStatus(request) {
 
     // Eventually, replace with Push Notifications
 
-    return caches.open(staticCacheName).then(function(cache) {
-        return fetch(request).then(function(response) {
-            cache.put(request, response.clone());
-            return response;
-        });
-    });
+    // return caches.open(staticCacheName).then(function(cache) {
+    //     return fetch(request).then(function(response) {
+    //         cache.put(request, response.clone());
+    //         return response;
+    //     });
+    // });
 }

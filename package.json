@@ -1,0 +1,15 @@
+{
+  "name": "tu-systemstatus",
+  "version": "1.0.0",
+  "description": "Temple University System Status",
+  "main": "js/demo.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+  },
+  "author": "Daniel Yee",
+  "license": "ISC",
+  "private": true,
+  "devDependencies": {
+    "idb": "^1.0.1"
+  }
+}

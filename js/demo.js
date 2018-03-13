@@ -1,49 +1,22 @@
-const weatherInterval = 1 /* seconds */
 const $cookieNotice = $("#cookieNotice");
-const temperatureColorHotStart = "#FFF2DB";
-const temperatureColorHotEnd = "#FF0000";
-const temperatureColorColdStart = "#0493F9";
-const temperatureColorColdEnd = "#6EC4E8";
-const noaaIconMapDay = {
-    "Partly Cloudy": "wi-day-cloudy",
-    "Mostly Cloudy": "wi-day-cloudy",
-    "Cloudy": "wi-day-cloudy",
-    "Mostly Clear": "wi-day-sunny",
-    "Clear": "wi-day-sunny",
-    "Mostly Cloudy and Windy": "wi-day-cloudy-windy",
-    "Thunderstorms and Rain and Fog/Mist": "wi-day-thunderstorm",
-    "Thunderstorms": "wi-day-thunderstorm",
-    "Haze": "wi-day-haze",
-    "Light Rain": "wi-day-rain",
-    "Light Rain and Fog/Mist": "wi-day-rain",
-    "Fog/Mist": "wi-day-fog",
-    "Light Drizzle and Fog/Mist": "wi-day-fog",
-    "Light Snow": "wi-day-snow",
-    "Light Snow and Fog/Mist": "wi-day-snow"
-};
-const noaaIconMapNight = {
-    "Partly Cloudy": "wi-night-alt-partly-cloudy",
-    "Mostly Cloudy": "wi-night-alt-cloudy",
-    "Cloudy": "wi-night-alt-cloudy",
-    "Mostly Clear": "wi-night-clear",
-    "Clear": "wi-night-clear",
-    "Mostly Cloudy and Windy": "wi-night-alt-cloudy-windy",
-    "Thunderstorms and Rain and Fog/Mist": "wi-night-alt-thunderstorm",
-    "Thunderstorms": "wi-night-alt-thunderstorm",
-    "Light Rain": "wi-night-alt-rain",
-    "Light Rain and Fog/Mist": "wi-night-alt-rain",
-    "Fog/Mist": "wi-night-fog",
-    "Light Drizzle and Fog/Mist": "wi-night-fog",
-    "Light Snow": "wi-night-snow",
-    "Light Snow and Fog/Mist": "wi-day-snow"
-};
-const yahooIconMap = ["wi-tornado", "wi-rain-wind", "wi-hurricane", "wi-thunderstorm", "wi-rain-mix", "wi-snow",
-    "wi-sleet", "wi-sleet", "wi-rain", "wi-sleet", "wi-showers", "wi-showers", "wi-showers", "wi-snow-wind", "wi-snow",
-    "wi-snow-wind", "wi-snow", "wi-hail", "wi-sleet", "wi-dust", "wi-fog", "wi-day-haze", "wi-smoke", "wi-strong-wind",
-    "wi-strong-wind", "wi-wi-snowflake-cold", "wi-cloudy", "wi-night-alt-cloudy", "wi-day-cloudy",
-    "wi-night-alt-partly-cloudy", "wi-day-cloudy", "wi-night-alt-partly-cloudy", "wi-day-sunny", "wi-stars",
-    "wi-day-sunny", "wi-hail", "wi-hot", "wi-thunderstorm", "wi-thunderstorm", "wi-thunderstorm", "wi-showers",
-    "wi-snow", "wi-snow", "wi-snow", "wi-cloudy", "wi-storm-showers", "wi-snow", "wi-storm-showers"];
+const weatherInterval = 1; /* seconds */
+
+function openDatabase() {
+    "use strict";
+
+    if (!navigator.serviceWorker) {
+        return Promise.resolve();
+    }
+
+    return idb.open("TU-stat", 1, function(upgradeDb) {
+        const store = upgradeDb.createObjectStore("statuses", {
+            keyPath: "id"
+        });
+
+        store.createIndex("date", "updated.date");
+        store.createIndex("status", "summarystatus");
+    });
+}
 
 (function serviceWorker() {
     if (!navigator.serviceWorker) return;
@@ -84,18 +57,169 @@ $(function init() {
     //     });
     // }
 
-    updateSystemStatus();
+    const _dbPromise = openDatabase();
+    let weatherTimer;
+    let showingPosts = false;
+
+    // updateSystemStatus();
+    _showSystemStatuses().then(function() {
+        _fetchStatuses();
+    });
 
     $("#header-bar-weather").find(".weather-group").each(function () {
         $(this).find(".weather-item").eq(1).fadeToggle();
     });
     updateWeather();
-    setInterval(rotateWeatherItems, weatherInterval * 1000 * 7);
+    // setInterval(rotateWeatherItems, weatherInterval * 1000 * 7);
+
+    weatherTimer = setTimeout(function weatherTimeout() {
+        rotateWeatherItems();
+        weatherTimer = setTimeout(weatherTimeout, weatherInterval * 1000 * 7);
+    }, weatherInterval * 1000 * 7);
+
     setInterval(updateWeather, weatherInterval * 1000 * 3600);
+
+    /* System Status */
+    /* Should use WebSockets or Push Notifications for System Status, but infrastructure doesn't exist yet */
+    function _showSystemStatuses() {
+        let data = [];
+        let index;
+
+        return _dbPromise.then(function(db) {
+            if (!db || showingPosts) {
+                return;
+            }
+
+            index = db.transaction("statuses").objectStore("statuses").index("date");
+
+            return index.openCursor(null, "prev").then(function getStatus(cursor) {
+                if (!cursor) return;
+
+                console.log(cursor.value);
+
+                data.push(cursor.value);
+                return cursor.continue.then(getStatus);
+            }).then(function () {
+                if (data.length > 0) {
+                    _addStatuses(data);
+                }
+            });
+        });
+    }
+
+    function _fetchStatuses() {
+        const systemStatusUrl = "https://systemstatus.temple.edu/system_status/feedJSON";
+
+        if (self.fetch) {
+            fetch(systemStatusUrl).then(function(response) {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    throw Error(`Status: ${response.status}. ${response.statusText}`);
+                }
+            }).then(function(data) {
+                _addStatuses(data);
+            });
+        } else {
+            alert("Your browser does not support the latest JavaScript features. Please upgrade to the latest version of Chrome, Firefox, or Edge.");
+        }
+    }
+
+    function _addStatuses(data) {
+        const $systemStatus = $("#systemStatus");
+
+        for (const status of data.entries) {
+            const $oldStatusCard = $systemStatus.find("div[id='" + status.id + "']");
+            const statusId = status.id;
+            const statusUrl = `https://systemstatus.temple.edu/${status.link}`;
+            const statusTitle = status.title;
+            const statusCondition = status.summarystatus.split(": ")[1];
+            const statusConditionClass = statusCondition.toLocaleLowerCase();
+            const statusSummaryText = $("<div>").html(status.summarytext).text();
+            const statusUpdateDateTime = formatDateTime(status.updated.date);
+
+
+            let statusCard = `<div class="col-12 systemStatusCardContainer">
+                                <div id="${statusId}" class="card systemStatusCard ${statusConditionClass}">
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-9">
+                                                <h1 class="card-title"><a href="https://systemstatus.temple.edu/${statusUrl}">${statusTitle}</a></h1>
+                                            </div>
+                                            <div class="col-3">
+                                                <p class="status">${statusCondition}</p>
+                                            </div>
+                                        </div>
+                                        <p class="card-text summary">${statusSummaryText}</p>
+                                    </div>
+                                    <div class="card-footer text-muted">
+                                        <p class="timestamp"><b>Updated</b>: ${statusUpdateDateTime}</p>
+                                    </div>
+                                </div>
+                              </div>`;
+
+            if ($oldStatusCard.length > 0) {
+
+            } else {
+                $systemStatus.append(statusCard);
+            }
+        }
+
+
+        /*for (const status of data.entries) {
+            const $oldStatusCard = $systemStatus.find("div[id='" + status.id + "']");
+            const statusId = status.id;
+            const statusUrl = `https://systemstatus.temple.edu/${status.link}`;
+            const statusTitle = status.title;
+            const statusCondition = status.summarystatus.split(": ")[1];
+            const statusConditionClass = statusCondition.toLocaleLowerCase();
+            const statusSummaryText = $("<div>").html(status.summarytext).text();
+            const statusUpdateDateTime = formatDateTime(status.updated.date);
+
+
+            let statusCard = `<div class="col-12 systemStatusCardContainer">
+                                <div id="${statusId}" class="card systemStatusCard ${statusConditionClass}">
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-9">
+                                                <h1 class="card-title"><a href="https://systemstatus.temple.edu/${statusUrl}">${statusTitle}</a></h1>
+                                            </div>
+                                            <div class="col-3">
+                                                <p class="status">${statusCondition}</p>
+                                            </div>
+                                        </div>
+                                        <p class="card-text summary">${statusSummaryText}</p>
+                                    </div>
+                                    <div class="card-footer text-muted">
+                                        <p class="timestamp"><b>Updated</b>: ${statusUpdateDateTime}</p>
+                                    </div>
+                                </div>
+                              </div>`;
+
+            if ($oldStatusCard.length > 0) {
+
+            } else {
+                $systemStatus.append(statusCard);
+            }
+        }*/
+
+        function formatDateTime(timestamp) {
+            const dateTimeParts = timestamp.split(" ");
+
+            const dateParts = dateTimeParts[0].split("-");
+            const year = parseInt(dateParts[0]);
+            const month = parseInt(dateParts[1]);
+            const date = parseInt(dateParts[2]);
+            const timeParts = dateTimeParts[1].split(":");
+            const hour = parseInt(timeParts[0]);
+            const minutes = parseInt(timeParts[1]);
+            const datetime = new Date(year, month, date, hour, minutes, 0, 0);
+
+            return new Intl.DateTimeFormat("en-US", {weekday: "long", year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "numeric" }).format(datetime);
+        }
+    }
 });
 
-/* System Status */
-/* Should use WebSockets or Push Notifications for System Status, but infrastructure doesn't exist yet */
 function updateSystemStatus() {
     "use strict";
 
@@ -216,7 +340,50 @@ function shadeBlend(p,c0,c1) {
 
 function updateWeather() {
     "use strict";
-
+    const temperatureColorHotStart = "#FFF2DB";
+    const temperatureColorHotEnd = "#FF0000";
+    const temperatureColorColdStart = "#0493F9";
+    const temperatureColorColdEnd = "#6EC4E8";
+    const noaaIconMapDay = {
+        "Partly Cloudy": "wi-day-cloudy",
+        "Mostly Cloudy": "wi-day-cloudy",
+        "Cloudy": "wi-day-cloudy",
+        "Mostly Clear": "wi-day-sunny",
+        "Clear": "wi-day-sunny",
+        "Mostly Cloudy and Windy": "wi-day-cloudy-windy",
+        "Thunderstorms and Rain and Fog/Mist": "wi-day-thunderstorm",
+        "Thunderstorms": "wi-day-thunderstorm",
+        "Haze": "wi-day-haze",
+        "Light Rain": "wi-day-rain",
+        "Light Rain and Fog/Mist": "wi-day-rain",
+        "Fog/Mist": "wi-day-fog",
+        "Light Drizzle and Fog/Mist": "wi-day-fog",
+        "Light Snow": "wi-day-snow",
+        "Light Snow and Fog/Mist": "wi-day-snow"
+    };
+    const noaaIconMapNight = {
+        "Partly Cloudy": "wi-night-alt-partly-cloudy",
+        "Mostly Cloudy": "wi-night-alt-cloudy",
+        "Cloudy": "wi-night-alt-cloudy",
+        "Mostly Clear": "wi-night-clear",
+        "Clear": "wi-night-clear",
+        "Mostly Cloudy and Windy": "wi-night-alt-cloudy-windy",
+        "Thunderstorms and Rain and Fog/Mist": "wi-night-alt-thunderstorm",
+        "Thunderstorms": "wi-night-alt-thunderstorm",
+        "Light Rain": "wi-night-alt-rain",
+        "Light Rain and Fog/Mist": "wi-night-alt-rain",
+        "Fog/Mist": "wi-night-fog",
+        "Light Drizzle and Fog/Mist": "wi-night-fog",
+        "Light Snow": "wi-night-snow",
+        "Light Snow and Fog/Mist": "wi-day-snow"
+    };
+    const yahooIconMap = ["wi-tornado", "wi-rain-wind", "wi-hurricane", "wi-thunderstorm", "wi-rain-mix", "wi-snow",
+        "wi-sleet", "wi-sleet", "wi-rain", "wi-sleet", "wi-showers", "wi-showers", "wi-showers", "wi-snow-wind", "wi-snow",
+        "wi-snow-wind", "wi-snow", "wi-hail", "wi-sleet", "wi-dust", "wi-fog", "wi-day-haze", "wi-smoke", "wi-strong-wind",
+        "wi-strong-wind", "wi-wi-snowflake-cold", "wi-cloudy", "wi-night-alt-cloudy", "wi-day-cloudy",
+        "wi-night-alt-partly-cloudy", "wi-day-cloudy", "wi-night-alt-partly-cloudy", "wi-day-sunny", "wi-stars",
+        "wi-day-sunny", "wi-hail", "wi-hot", "wi-thunderstorm", "wi-thunderstorm", "wi-thunderstorm", "wi-showers",
+        "wi-snow", "wi-snow", "wi-snow", "wi-cloudy", "wi-storm-showers", "wi-snow", "wi-storm-showers"];
     const wundergroundUrl = "https://www.wunderground.com/cgi-bin/findweather/getForecast?query=";
     const useCelsius = document.cookie.replace(/(?:(?:^|.*;\s*)browserLocation\s*\=\s*([^;]*).*$)|^.*$/, "$1") !== "US";
     const hotMax = useCelsius ? 48.89 : 120;
