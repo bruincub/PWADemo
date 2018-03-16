@@ -11,6 +11,7 @@ self.addEventListener("install", function(event) {
             return cache.addAll([
                 "index.html",
                 "js/demo.js",
+                "js/idb/idb.js",
                 "css/demo.css",
                 "https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css",
                 "https://code.jquery.com/jquery-3.2.1.min.js",
@@ -49,6 +50,13 @@ self.addEventListener("fetch", function(event) {
     "use strict";
 
     let requestUrl = new URL(event.request.url);
+
+    if (requestUrl.origin === location.origin) {
+        if (requestUrl.pathname === '/') {
+            event.respondWith(caches.match('index.html'));
+            return;
+        }
+    }
 
     if (requestUrl.origin === "https://query.yahooapis.com" || requestUrl.origin === "https://api.weather.gov") {
         event.respondWith(serveWeather(event.request));
