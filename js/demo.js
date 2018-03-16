@@ -95,10 +95,8 @@ $(function init() {
             return index.openCursor(null, "prev").then(function getStatus(cursor) {
                 if (!cursor) return;
 
-                console.log(cursor.value);
-
                 data.push(cursor.value);
-                return cursor.continue.then(getStatus);
+                return cursor.continue().then(getStatus);
             }).then(function () {
                 if (data.length > 0) {
                     _addStatuses(data);
@@ -117,7 +115,18 @@ $(function init() {
                 } else {
                     throw Error(`Status: ${response.status}. ${response.statusText}`);
                 }
-            }).then(function(data) {
+            }).then(function(json) {
+                let data = [];
+
+                for (const status of json.entries) {
+                    data.push(status);
+
+                    _dbPromise.then(function(db) {
+                        const store = db.transaction("statuses", "readwrite").objectStore("statuses");
+                        store.put(status);
+                    });
+                }
+
                 _addStatuses(data);
             });
         } else {
@@ -128,7 +137,7 @@ $(function init() {
     function _addStatuses(data) {
         const $systemStatus = $("#systemStatus");
 
-        for (const status of data.entries) {
+        for (const status of data) {
             const $oldStatusCard = $systemStatus.find("div[id='" + status.id + "']");
             const statusId = status.id;
             const statusUrl = `https://systemstatus.temple.edu/${status.link}`;
@@ -164,44 +173,6 @@ $(function init() {
                 $systemStatus.append(statusCard);
             }
         }
-
-
-        /*for (const status of data.entries) {
-            const $oldStatusCard = $systemStatus.find("div[id='" + status.id + "']");
-            const statusId = status.id;
-            const statusUrl = `https://systemstatus.temple.edu/${status.link}`;
-            const statusTitle = status.title;
-            const statusCondition = status.summarystatus.split(": ")[1];
-            const statusConditionClass = statusCondition.toLocaleLowerCase();
-            const statusSummaryText = $("<div>").html(status.summarytext).text();
-            const statusUpdateDateTime = formatDateTime(status.updated.date);
-
-
-            let statusCard = `<div class="col-12 systemStatusCardContainer">
-                                <div id="${statusId}" class="card systemStatusCard ${statusConditionClass}">
-                                    <div class="card-body">
-                                        <div class="row">
-                                            <div class="col-9">
-                                                <h1 class="card-title"><a href="https://systemstatus.temple.edu/${statusUrl}">${statusTitle}</a></h1>
-                                            </div>
-                                            <div class="col-3">
-                                                <p class="status">${statusCondition}</p>
-                                            </div>
-                                        </div>
-                                        <p class="card-text summary">${statusSummaryText}</p>
-                                    </div>
-                                    <div class="card-footer text-muted">
-                                        <p class="timestamp"><b>Updated</b>: ${statusUpdateDateTime}</p>
-                                    </div>
-                                </div>
-                              </div>`;
-
-            if ($oldStatusCard.length > 0) {
-
-            } else {
-                $systemStatus.append(statusCard);
-            }
-        }*/
 
         function formatDateTime(timestamp) {
             const dateTimeParts = timestamp.split(" ");
@@ -404,6 +375,7 @@ function updateWeather() {
                if (response.ok) {
                    return response.json();
                } else {
+                   console.log(response);
                    throw Error(`Status: ${response.status}. ${response.statusText}`);
                }
            }).then(function (json) {
