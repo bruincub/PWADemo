@@ -20,6 +20,10 @@ body {
     margin-left: 0;
 }
 
+#logo {
+    display: block;
+}
+
 .weather-group {
     display: inline-block;
     height: 65px;
@@ -93,6 +97,16 @@ body {
 
 .systemStatusCard.intermittent .card-body {
     background: linear-gradient(.25turn, #FFF3CD 1.25%, #FFFFFF 1.25%);
+}
+
+.systemStatusCard.unavailable .status {
+    background-color: #FF5151;
+    color: #963030;
+    border-color: #FF3030;
+}
+
+.systemStatusCard.unavailable .card-body {
+    background: linear-gradient(.25turn, #FF5151 1.25%, #FFFFFF 1.25%);
 }
 
 .systemStatusCard .timestamp {

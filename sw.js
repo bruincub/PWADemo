@@ -23,7 +23,8 @@ self.addEventListener("install", function(event) {
                 "fonts/weathericons/css/weather-icons.min.css",
                 "fonts/weathericons/font/weathericons-regular-webfont.ttf",
                 "fonts/weathericons/font/weathericons-regular-webfont.woff2",
-                "fonts/weathericons/font/weathericons-regular-webfont.woff"
+                "fonts/weathericons/font/weathericons-regular-webfont.woff",
+                "images/tuportalLogoWhite.png"
             ]);
         })
     );
