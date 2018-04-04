@@ -30,3 +30,13 @@ $RECYCLE.BIN/
 .idea/vcs.xml
 .idea/workspace.xml
 PWADemo.iml
+node_modules/idb/.npmignore
+node_modules/idb/gulpfile.js
+node_modules/idb/lib/idb.js
+node_modules/idb/LICENSE
+node_modules/idb/package.json
+node_modules/idb/test/idb.js
+node_modules/idb/yarn.lock
+node_modules/idb/README.md
+node_modules/idb/lib/idb.d.ts
+node_modules/idb/test/index.html
